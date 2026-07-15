@@ -53,10 +53,11 @@ class SKP2Ver extends Model
         return 0;
     }
 
-    public function verifikasi($status, $catatan)
+    public function verifikasi($status, $catatan, $poin)
     {
         $this->status = $status;
         $this->keterangan = $catatan;
+        $this->poin = $poin;
         return $this->save();
     }
 }

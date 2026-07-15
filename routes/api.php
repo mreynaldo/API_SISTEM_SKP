@@ -10,10 +10,12 @@ use App\Http\Controllers\Admin\SkpController as AdminSkpController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/kategori', [KategoriController::class, 'index']);
+Route::get('/cek-npm/{nim}', [AuthController::class, 'cekNpm']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/kategori', [KategoriController::class, 'index']);
+    Route::post('/save-fcm-token', [AuthController::class, 'saveFcmToken']);
 
     // --- RUTE KHUSUS ADMIN  ---
     Route::middleware('role.admin')->prefix('admin')->group(function () {

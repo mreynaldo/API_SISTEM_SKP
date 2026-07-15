@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\SKP2Ver;
+use Illuminate\Support\Facades\Http; 
+use App\Models\User;
+use Google_Client;
 
 class SkpController extends Controller
 {
@@ -34,21 +37,80 @@ class SkpController extends Controller
         ], 200);
     }
 
+    private function kirimPushNotifikasi($fcmToken, $title, $message) 
+    {
+        // 1. Ganti dengan Project ID Firebase lu (Lihat di Project Settings -> General)
+        // Kalau dari screenshot lu, kayaknya namanya: skp-marooners
+        $projectId = 'skp-marooners'; 
+
+        // 2. Lokasi file JSON yang lu download di Langkah 1
+        $credentialsFilePath = storage_path('app/firebase_credentials.json');
+
+        // 3. Generate OAuth Token pakai library Google
+        $client = new Google_Client();
+        $client->setAuthConfig($credentialsFilePath);
+        $client->addScope('https://www.googleapis.com/auth/firebase.messaging');
+        $client->fetchAccessTokenWithAssertion();
+        $token = $client->getAccessToken();
+        
+        $accessToken = $token['access_token'];
+
+        // 4. Struktur Data untuk FCM V1 (Dibungkus dalam array 'message')
+        $payload = [
+            "message" => [
+                "token" => $fcmToken,
+                "notification" => [
+                    "title" => $title,
+                    "body" => $message,
+                ],
+                "data" => [
+                    "title" => $title,
+                    "message" => $message,
+                ]
+            ]
+        ];
+
+        // 5. Tembak ke API V1 Google
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $accessToken,
+            'Content-Type' => 'application/json',
+        ])->post("https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send", $payload);
+
+        return $response->successful();
+    }
+
     public function verifikasi(Request $request, $id)
     {
         $request->validate([
             'status'     => 'required|in:-1,1',
             'keterangan' => 'required_if:status,-1|max:255', 
+            'poin' => 'required_if:status,1', 
         ], [
             'keterangan.required_if' => 'Kolom keterangan wajib diisi jika pengajuan ditolak.',
+            'poin.required_if' => 'Kolom Poin wajib diisi.',
             'status.required'        => 'Status verifikasi wajib dipilih.',
             'status.in'              => 'Status tidak valid. Hanya menerima 1 (ACC) atau -1 (Tolak).'
         ]);
 
         $skp = SKP2Ver::findOrFail($id);
-        $result = $skp->verifikasi($request->status, $request->keterangan);
+        $result = $skp->verifikasi($request->status, $request->keterangan, $request->poin);
 
         if ($result) {
+            $mahasiswa = User::find($skp->user_id);
+
+            // Jika mahasiswa punya fcm_token, kirim notif
+            if ($mahasiswa && $mahasiswa->fcm_token) {
+                if ($request->status == '1') {
+                    $title = "Pengajuan SKP Disetujui! 🎉";
+                    $message = "Pengajuan '" . $skp->judul . "' telah diverifikasi.";
+                } else {
+                    $title = "Pengajuan SKP Ditolak ❌";
+                    $message = "Pengajuan '" . $skp->judul . "' ditolak. Catatan: " . $request->keterangan;
+                }
+                
+                // Panggil fungsi kirim
+                $this->kirimPushNotifikasi($mahasiswa->fcm_token, $title, $message);
+            }
             return response()->json([
                 'status'  => 'success',
                 'message' => 'Status pengajuan berhasil diperbarui.',
