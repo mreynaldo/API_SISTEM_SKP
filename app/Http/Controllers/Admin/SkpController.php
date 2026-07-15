@@ -39,14 +39,10 @@ class SkpController extends Controller
 
     private function kirimPushNotifikasi($fcmToken, $title, $message) 
     {
-        // 1. Ganti dengan Project ID Firebase lu (Lihat di Project Settings -> General)
-        // Kalau dari screenshot lu, kayaknya namanya: skp-marooners
         $projectId = 'skp-marooners'; 
 
-        // 2. Lokasi file JSON yang lu download di Langkah 1
         $credentialsFilePath = storage_path('app/firebase_credentials.json');
 
-        // 3. Generate OAuth Token pakai library Google
         $client = new Google_Client();
         $client->setAuthConfig($credentialsFilePath);
         $client->addScope('https://www.googleapis.com/auth/firebase.messaging');
@@ -55,7 +51,6 @@ class SkpController extends Controller
         
         $accessToken = $token['access_token'];
 
-        // 4. Struktur Data untuk FCM V1 (Dibungkus dalam array 'message')
         $payload = [
             "message" => [
                 "token" => $fcmToken,
@@ -70,7 +65,6 @@ class SkpController extends Controller
             ]
         ];
 
-        // 5. Tembak ke API V1 Google
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . $accessToken,
             'Content-Type' => 'application/json',
@@ -98,7 +92,6 @@ class SkpController extends Controller
         if ($result) {
             $mahasiswa = User::find($skp->user_id);
 
-            // Jika mahasiswa punya fcm_token, kirim notif
             if ($mahasiswa && $mahasiswa->fcm_token) {
                 if ($request->status == '1') {
                     $title = "Pengajuan SKP Disetujui! 🎉";
@@ -108,7 +101,6 @@ class SkpController extends Controller
                     $message = "Pengajuan '" . $skp->judul . "' ditolak. Catatan: " . $request->keterangan;
                 }
                 
-                // Panggil fungsi kirim
                 $this->kirimPushNotifikasi($mahasiswa->fcm_token, $title, $message);
             }
             return response()->json([

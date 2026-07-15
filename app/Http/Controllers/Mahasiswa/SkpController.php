@@ -37,8 +37,7 @@ class SkpController extends Controller
         } catch (\Exception $e) {
             Log::error("Gagal Upload GDrive: " . $e->getMessage());
             return response()->json([
-                'message' => 'Error Asli: ' . $e->getMessage()
-               // 'message' => 'Gagal mengunggah sertifikat ke server penyimpanan.'
+                'message' => 'Gagal mengunggah sertifikat ke server penyimpanan.'
             ], 500);
         }
 
